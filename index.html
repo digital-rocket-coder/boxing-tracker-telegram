@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f1115" />
+    <title>Бокс Трекер</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  </head>
+  <body>
+    <main class="app-shell" aria-live="polite">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Абонемент</p>
+          <h1 id="studentName">Бокс</h1>
+          <p class="subtitle" id="subscriptionTitle">60 занятий</p>
+        </div>
+        <span class="mode-pill" id="modePill">Ученик</span>
+      </header>
+
+      <section class="stats" aria-label="Статистика абонемента">
+        <article>
+          <span class="stat-label">Отходил</span>
+          <strong id="completedCount">0</strong>
+        </article>
+        <article>
+          <span class="stat-label">Осталось</span>
+          <strong id="remainingCount">0</strong>
+        </article>
+        <article>
+          <span class="stat-label">Прогресс</span>
+          <strong id="progressPercent">0%</strong>
+        </article>
+      </section>
+
+      <section class="progress-panel">
+        <div class="progress-line">
+          <span>Общий прогресс</span>
+          <span id="progressCaption">0 из 60</span>
+        </div>
+        <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+      </section>
+
+      <section class="grid-wrap" aria-label="Сетка занятий">
+        <div class="session-grid" id="sessionGrid"></div>
+      </section>
+
+      <section class="details">
+        <div>
+          <span class="stat-label">Последнее занятие</span>
+          <strong id="lastSession">Пока нет</strong>
+        </div>
+        <button class="ghost-button" id="copyLinkButton" type="button">Ссылка тренеру</button>
+      </section>
+    </main>
+
+    <nav class="bottom-actions">
+      <button class="primary-button" id="shareButton" type="button">Отправить тренеру</button>
+    </nav>
+
+    <dialog class="confirm-dialog" id="confirmDialog">
+      <form method="dialog">
+        <h2 id="dialogTitle">Отметить занятие?</h2>
+        <p id="dialogText">Подтвердите действие.</p>
+        <div class="dialog-actions">
+          <button class="secondary-button" value="cancel">Отмена</button>
+          <button class="primary-button" id="confirmButton" value="confirm">Да, занятие прошло</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div class="toast" id="toast" role="status"></div>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
