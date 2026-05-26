@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Трекер Бокса</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <div id="loader" class="loader-wrap">
+      <div class="spinner"></div>
+    </div>
+
+    <div id="main" class="hidden">
+      <!-- Header -->
+      <header class="header">
+        <div class="header-title">
+          <span class="emoji">🥊</span>
+          <div>
+            <div class="user-name" id="userName"></div>
+            <div class="sub-title" id="subTitle"></div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Stats -->
+      <section class="stats">
+        <div class="stat-card">
+          <div class="stat-value" id="statDone">0</div>
+          <div class="stat-label">Отходил</div>
+        </div>
+        <div class="stat-card accent">
+          <div class="stat-value" id="statLeft">0</div>
+          <div class="stat-label">Осталось</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="statPct">0%</div>
+          <div class="stat-label">Прогресс</div>
+        </div>
+      </section>
+
+      <!-- Progress bar -->
+      <div class="progress-bar-wrap">
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div class="progress-label" id="progressLabel"></div>
+      </div>
+
+      <!-- Grid -->
+      <div class="grid" id="grid"></div>
+
+      <!-- Share button -->
+      <div class="bottom-bar">
+        <button class="btn-share" id="btnShare">
+          <span>📤</span> Отправить тренеру
+        </button>
+      </div>
+    </div>
+
+    <!-- Dialog -->
+    <div id="dialog" class="dialog-overlay hidden">
+      <div class="dialog-box">
+        <div class="dialog-title" id="dialogTitle"></div>
+        <div class="dialog-body" id="dialogBody"></div>
+        <div class="dialog-actions">
+          <button class="btn-cancel" id="btnCancel">Отмена</button>
+          <button class="btn-confirm" id="btnConfirm">Да, занятие прошло</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
