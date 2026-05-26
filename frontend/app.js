@@ -1,7 +1,10 @@
 /* ─── Config ─────────────────────────────────────────────── */
-const API_BASE = window.location.hostname === 'localhost' || window.location.protocol === 'file:'
-  ? 'http://localhost:8000'
-  : '';
+// В продакшене замените на URL вашего Railway-бэкенда, например:
+// const API_BASE = 'https://boxing-tracker-backend.up.railway.app';
+const API_BASE = window.__API_BASE__
+  || (window.location.hostname === 'localhost' || window.location.protocol === 'file:'
+      ? 'http://localhost:8000'
+      : '');
 
 /* ─── Telegram WebApp ────────────────────────────────────── */
 const tg = window.Telegram?.WebApp;
