@@ -1,7 +1,7 @@
 /* ─── Config ─────────────────────────────────────────────── */
 const API_BASE = window.location.hostname === 'localhost' || window.location.protocol === 'file:'
   ? 'http://localhost:8000'
-  : '';  // same origin in production
+  : '';
 
 /* ─── Telegram WebApp ────────────────────────────────────── */
 const tg = window.Telegram?.WebApp;
@@ -10,15 +10,20 @@ if (tg) {
   tg.expand();
 }
 
+/* ─── Share mode? ────────────────────────────────────────── */
+const urlParams = new URLSearchParams(window.location.search);
+const SHARE_TOKEN = urlParams.get('share');
+const READ_ONLY = Boolean(SHARE_TOKEN);
+
 /* ─── State ──────────────────────────────────────────────── */
-let state = null;   // full progress response
+let state = null;
 let pendingCell = null;
 
 /* ─── DOM refs ───────────────────────────────────────────── */
 const $ = id => document.getElementById(id);
-const loader   = $('loader');
-const main     = $('main');
-const dialog   = $('dialog');
+const loader  = $('loader');
+const main    = $('main');
+const dialog  = $('dialog');
 
 /* ─── API ────────────────────────────────────────────────── */
 function authHeader() {
@@ -42,9 +47,17 @@ function render(data) {
   state = data;
   const { user, subscription, stats, cells } = data;
 
+  // Header
   $('userName').textContent = user.first_name || user.username || 'Боксёр';
   $('subTitle').textContent = subscription.title + ' · ' + subscription.total + ' занятий';
 
+  // Read-only badge
+  if (READ_ONLY) {
+    $('readOnlyBadge').classList.remove('hidden');
+    $('btnShare').classList.add('hidden');
+  }
+
+  // Stats
   $('statDone').textContent = stats.completed;
   $('statLeft').textContent = stats.remaining;
   $('statPct').textContent  = stats.percent + '%';
@@ -52,6 +65,16 @@ function render(data) {
   $('progressFill').style.width  = stats.percent + '%';
   $('progressLabel').textContent = stats.percent + '%';
 
+  // Last session date
+  if (stats.last_date) {
+    const d = new Date(stats.last_date);
+    $('lastDate').textContent = 'Последнее занятие: ' + d.toLocaleDateString('ru-RU', {
+      day: 'numeric', month: 'long', year: 'numeric'
+    });
+    $('lastDate').classList.remove('hidden');
+  }
+
+  // Grid
   const grid = $('grid');
   grid.innerHTML = '';
   cells.forEach(cell => {
@@ -59,7 +82,8 @@ function render(data) {
     el.className = 'cell' + (cell.completed ? ' done' : '');
     el.textContent = cell.completed ? '✓' : cell.number;
     el.dataset.number = cell.number;
-    el.addEventListener('click', () => onCellClick(cell));
+    if (!READ_ONLY) el.addEventListener('click', () => onCellClick(cell));
+    else el.style.cursor = 'default';
     grid.appendChild(el);
   });
 
@@ -101,7 +125,6 @@ $('btnConfirm').addEventListener('click', async () => {
   if (!pendingCell) return;
   const { number, completed } = pendingCell;
   closeDialog();
-
   try {
     let data;
     if (completed) {
@@ -120,16 +143,22 @@ $('btnConfirm').addEventListener('click', async () => {
 /* ─── Share ──────────────────────────────────────────────── */
 $('btnShare').addEventListener('click', () => {
   if (!state) return;
-  const { stats, subscription } = state;
+  const { stats, subscription, user } = state;
+  const token = subscription.share_token;
 
-  // Build visual progress bar (10 blocks)
+  // Ссылка на read-only страницу
+  const appUrl = window.location.origin + window.location.pathname + `?share=${token}`;
+
+  // Красивый текст для отправки в Telegram
   const filled = Math.round(stats.percent / 10);
   const bar = '🟩'.repeat(filled) + '⬜'.repeat(10 - filled);
 
   let lastDate = '';
   if (stats.last_date) {
     const d = new Date(stats.last_date);
-    lastDate = '\nПоследнее занятие: ' + d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+    lastDate = '\nПоследнее занятие: ' + d.toLocaleDateString('ru-RU', {
+      day: 'numeric', month: 'long', year: 'numeric'
+    });
   }
 
   const text =
@@ -138,27 +167,37 @@ $('btnShare').addEventListener('click', () => {
 ✅ Выполнено: ${stats.completed} из ${subscription.total}
 ⏳ Осталось: ${stats.remaining} занятий
 📊 Прогресс: ${stats.percent}%
-${bar}  ${stats.percent}%${lastDate}`;
+${bar}${lastDate}
 
-  if (tg?.switchInlineQuery !== undefined) {
-    // Share via Telegram
-    tg.switchInlineQuery(text, ['users', 'groups']);
+👁 Смотреть в реальном времени:
+${appUrl}`;
+
+  if (tg) {
+    // Открываем стандартное окно «Поделиться» Telegram с текстом и ссылкой
+    tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(appUrl)}&text=${encodeURIComponent(
+`🥊 ${user.first_name} — прогресс по боксу
+✅ ${stats.completed}/${subscription.total} занятий (${stats.percent}%)
+${bar}`)}`);
   } else if (navigator.share) {
-    navigator.share({ text });
+    navigator.share({ text, url: appUrl });
   } else {
     navigator.clipboard?.writeText(text);
-    alert('Текст скопирован в буфер обмена!');
+    alert('Ссылка скопирована в буфер обмена!');
   }
 });
 
 /* ─── Init ───────────────────────────────────────────────── */
 async function init() {
   try {
-    const data = await apiFetch('GET', '/api/progress');
+    let data;
+    if (READ_ONLY) {
+      data = await apiFetch('GET', `/api/progress/share/${SHARE_TOKEN}`);
+    } else {
+      data = await apiFetch('GET', '/api/progress');
+    }
     render(data);
   } catch (err) {
     console.error('Failed to load progress:', err);
-    // Show demo data when backend is unavailable
     renderDemo();
   }
 }

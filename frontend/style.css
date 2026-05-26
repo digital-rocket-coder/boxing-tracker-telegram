@@ -122,6 +122,27 @@ body {
   text-align: right;
 }
 
+/* ─── Read-only badge ────────────────────────────────────── */
+.header-title {
+  justify-content: space-between;
+}
+.readonly-badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tg-btn-bg);
+  background: color-mix(in srgb, var(--tg-btn-bg) 12%, transparent);
+  padding: 4px 10px;
+  border-radius: 99px;
+  white-space: nowrap;
+}
+
+/* ─── Last date ──────────────────────────────────────────── */
+.last-date {
+  padding: 0 16px 4px;
+  font-size: 12px;
+  color: var(--tg-hint);
+}
+
 /* ─── Grid ───────────────────────────────────────────────── */
 .grid {
   display: grid;
