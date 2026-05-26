@@ -144,48 +144,44 @@ $('btnConfirm').addEventListener('click', async () => {
 });
 
 /* ─── Share ──────────────────────────────────────────────── */
-$('btnShare').addEventListener('click', () => {
+$('btnShare').addEventListener('click', async () => {
   if (!state) return;
-  const { stats, subscription, user } = state;
-  const token = subscription.share_token;
 
-  // Ссылка на read-only страницу
-  const appUrl = window.location.origin + window.location.pathname + `?share=${token}`;
+  const btn = $('btnShare');
+  btn.disabled = true;
+  btn.textContent = '⏳ Отправляем...';
 
-  // Красивый текст для отправки в Telegram
-  const filled = Math.round(stats.percent / 10);
-  const bar = '🟩'.repeat(filled) + '⬜'.repeat(10 - filled);
+  try {
+    // Просим бот отправить карточку в наш чат — потом пересылаем тренеру
+    await apiFetch('POST', '/api/share/send-card');
 
-  let lastDate = '';
-  if (stats.last_date) {
-    const d = new Date(stats.last_date);
-    lastDate = '\nПоследнее занятие: ' + d.toLocaleDateString('ru-RU', {
-      day: 'numeric', month: 'long', year: 'numeric'
-    });
-  }
+    btn.textContent = '✅ Карточка отправлена!';
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.innerHTML = '<span>📤</span> Отправить тренеру';
+    }, 3000);
 
-  const text =
-`🥊 Мой прогресс — ${subscription.title}
-━━━━━━━━━━━━━━━━━━
-✅ Выполнено: ${stats.completed} из ${subscription.total}
-⏳ Осталось: ${stats.remaining} занятий
-📊 Прогресс: ${stats.percent}%
-${bar}${lastDate}
-
-👁 Смотреть в реальном времени:
-${appUrl}`;
-
-  if (tg) {
-    // Открываем стандартное окно «Поделиться» Telegram с текстом и ссылкой
-    tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(appUrl)}&text=${encodeURIComponent(
-`🥊 ${user.first_name} — прогресс по боксу
-✅ ${stats.completed}/${subscription.total} занятий (${stats.percent}%)
-${bar}`)}`);
-  } else if (navigator.share) {
-    navigator.share({ text, url: appUrl });
-  } else {
-    navigator.clipboard?.writeText(text);
-    alert('Ссылка скопирована в буфер обмена!');
+    // Показываем подсказку
+    if (tg) {
+      tg.showPopup({
+        title: 'Готово!',
+        message: 'Бот отправил тебе карточку с кнопкой. Перешли её тренеру в личку 👇',
+        buttons: [{ type: 'ok' }]
+      });
+    }
+  } catch (err) {
+    console.error(err);
+    // Fallback — старый способ
+    const { stats, subscription, user } = state;
+    const token = subscription.share_token;
+    const appUrl = window.location.origin + window.location.pathname + `?share=${token}`;
+    const filled = Math.round(stats.percent / 10);
+    const bar = '🟩'.repeat(filled) + '⬜'.repeat(10 - filled);
+    if (tg) {
+      tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(appUrl)}&text=${encodeURIComponent(`🥊 ${user.first_name} — прогресс по боксу\n✅ ${stats.completed}/${subscription.total} (${stats.percent}%)\n${bar}`)}`);
+    }
+    btn.disabled = false;
+    btn.innerHTML = '<span>📤</span> Отправить тренеру';
   }
 });
 

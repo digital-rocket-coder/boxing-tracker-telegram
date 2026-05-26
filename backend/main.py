@@ -4,6 +4,7 @@ import json
 import os
 import time
 import urllib.parse
+import urllib.request
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Optional
@@ -12,6 +13,8 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import sqlite3
+
+WEBAPP_URL = os.getenv("WEBAPP_URL", "https://boxing-tracker-telegram.vercel.app")
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 DB_PATH = os.getenv("DB_PATH", "boxing.db")
@@ -222,3 +225,54 @@ def link_trainer(body: dict, tg_user=Depends(get_current_user), db=Depends(get_d
     )
     db.commit()
     return {"ok": True}
+
+
+def send_telegram_message(chat_id: int, text: str, reply_markup: dict = None):
+    """Send message via Telegram Bot API."""
+    if not BOT_TOKEN:
+        return
+    payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
+    if reply_markup:
+        payload["reply_markup"] = json.dumps(reply_markup)
+    data = json.dumps(payload).encode()
+    req = urllib.request.Request(
+        f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+        data=data,
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        urllib.request.urlopen(req, timeout=5)
+    except Exception as e:
+        print(f"Telegram send error: {e}")
+
+
+@app.post("/api/share/send-card")
+def send_share_card(tg_user=Depends(get_current_user), db=Depends(get_db)):
+    """Send a share card to the student's own chat — they forward it to trainer."""
+    data = build_progress(tg_user["id"], db)
+    stats = data["stats"]
+    sub = data["subscription"]
+    user = data["user"]
+
+    filled = round(stats["percent"] / 10)
+    bar = "🟩" * filled + "⬜" * (10 - filled)
+
+    text = (
+        f"🥊 <b>{user['first_name']} — прогресс по боксу</b>\n"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        f"✅ Выполнено: {stats['completed']} из {sub['total']}\n"
+        f"⏳ Осталось: {stats['remaining']} занятий\n"
+        f"📊 Прогресс: {stats['percent']}%\n"
+        f"{bar}\n\n"
+        f"<i>Перешли это сообщение тренеру 👇</i>"
+    )
+
+    share_url = f"{WEBAPP_URL}/?share={sub['share_token']}"
+    reply_markup = {
+        "inline_keyboard": [[
+            {"text": "📊 Смотреть прогресс", "url": share_url}
+        ]]
+    }
+
+    send_telegram_message(tg_user["id"], text, reply_markup)
+    return {"ok": True, "share_url": share_url}
