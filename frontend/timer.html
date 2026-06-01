@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+  <title>Боксёрский таймер</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    :root{
+      --bg:  #141829;
+      --bg2: #1e2442;
+      --bg3: #252d4e;
+      --red: #e8233a;
+      --red2:rgba(232,35,58,.15);
+      --tx:  #ffffff;
+      --hi:  rgba(255,255,255,.45);
+      --br:  rgba(255,255,255,.09);
+      --sb:  env(safe-area-inset-bottom,0px);
+      --st:  env(safe-area-inset-top,0px);
+    }
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    html,body{height:100%;overflow:hidden}
+    body{
+      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+      background:var(--bg);color:var(--tx);
+      overscroll-behavior:none;user-select:none;
+    }
+    #root{height:100%;display:flex;flex-direction:column}
+
+    /* ── screens ── */
+    .screen{
+      position:fixed;inset:0;display:flex;flex-direction:column;
+      background:var(--bg);
+      transition:transform .32s cubic-bezier(.3,0,.2,1);
+      z-index:1;
+    }
+    .screen.offr{transform:translateX(100%);pointer-events:none}
+    .screen.offl{transform:translateX(-25%);pointer-events:none;opacity:.5}
+
+    /* ── scrollable area ── */
+    .scr{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+    .scr::-webkit-scrollbar{display:none}
+
+    /* ── top bar ── */
+    .topbar{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:calc(var(--st)+14px) 18px 10px;
+      flex-shrink:0;
+    }
+    .topbar-title{font-size:18px;font-weight:700;color:var(--tx)}
+    .menu-btn{
+      background:none;border:none;color:var(--hi);
+      font-size:20px;cursor:pointer;padding:4px;
+      line-height:1;
+    }
+    .back-btn{
+      background:none;border:none;
+      color:var(--red);font-size:15px;font-weight:600;
+      cursor:pointer;padding:4px 0;
+      transition:opacity .15s;
+    }
+    .back-btn:active{opacity:.5}
+
+    /* ════════════════════════════
+       HOME SCREEN
+    ════════════════════════════ */
+    .home-center{
+      flex:1;display:flex;flex-direction:column;
+      align-items:center;justify-content:center;
+      gap:6px;padding:0 20px;
+    }
+    .home-rounds{
+      font-size:16px;font-weight:600;
+      color:var(--hi);text-transform:uppercase;letter-spacing:.08em;
+    }
+    .home-time{
+      font-size:clamp(80px,24vw,110px);
+      font-weight:800;color:var(--red);
+      line-height:1;
+      font-variant-numeric:tabular-nums;
+      font-family:'SF Mono','Courier New',monospace;
+      letter-spacing:-2px;
+    }
+    .home-phase{
+      font-size:14px;font-weight:600;color:var(--hi);
+      min-height:20px;
+    }
+    .home-phase.rest{color:#30d158}
+    .home-phase.boom{color:#ff9f0a}
+
+    /* round dots */
+    .rdots{
+      display:flex;gap:5px;margin-top:4px;
+    }
+    .rdot{
+      width:6px;height:6px;border-radius:50%;
+      background:var(--br);transition:background .3s;
+    }
+    .rdot.done{background:rgba(232,35,58,.4)}
+    .rdot.cur {background:var(--red)}
+
+    /* timer selector bottom */
+    .timer-shelf{
+      flex-shrink:0;
+      padding:10px 12px calc(var(--sb)+12px);
+      display:flex;gap:8px;align-items:stretch;
+    }
+    .t-cards{
+      flex:1;display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;
+    }
+    .t-cards::-webkit-scrollbar{display:none}
+    .t-card{
+      flex-shrink:0;
+      background:var(--bg2);
+      border:2px solid transparent;
+      border-radius:14px;
+      padding:10px 14px;
+      text-align:center;
+      cursor:pointer;min-width:68px;
+      transition:all .18s;
+    }
+    .t-card.active{border-color:var(--red);background:var(--red2)}
+    .t-card-lbl{font-size:10px;color:var(--hi);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+    .t-card-val{font-size:16px;font-weight:800;color:var(--tx)}
+    .t-card.active .t-card-val{color:var(--red)}
+    .t-add{
+      flex-shrink:0;
+      width:48px;
+      background:var(--bg2);border:2px dashed var(--br);
+      border-radius:14px;
+      display:flex;align-items:center;justify-content:center;
+      font-size:22px;color:var(--hi);cursor:pointer;
+      transition:all .18s;
+    }
+    .t-add:active{opacity:.6;transform:scale(.93)}
+
+    /* start / control buttons */
+    .btn-area{
+      padding:0 12px calc(var(--sb)+16px);
+      flex-shrink:0;
+    }
+    .btn-start{
+      width:100%;height:52px;border-radius:14px;
+      background:var(--red);border:none;
+      color:#fff;font-size:17px;font-weight:800;
+      text-transform:uppercase;letter-spacing:.08em;
+      cursor:pointer;transition:opacity .15s,transform .1s;
+    }
+    .btn-start:active{opacity:.8;transform:scale(.98)}
+
+    .btn-pair{display:flex;gap:10px}
+    .btn-reset{
+      flex:0 0 110px;height:52px;border-radius:14px;
+      background:transparent;border:2px solid var(--red);
+      color:var(--red);font-size:15px;font-weight:800;
+      text-transform:uppercase;letter-spacing:.06em;
+      cursor:pointer;transition:all .15s;
+    }
+    .btn-reset:active{background:var(--red2)}
+    .btn-stop{
+      flex:1;height:52px;border-radius:14px;
+      background:transparent;border:2px solid var(--red);
+      color:var(--red);font-size:15px;font-weight:800;
+      text-transform:uppercase;letter-spacing:.06em;
+      cursor:pointer;transition:all .15s;
+    }
+    .btn-stop.running{background:var(--red);color:#fff}
+    .btn-stop:active{opacity:.8}
+
+    /* empty */
+    .empty{
+      flex:1;display:flex;flex-direction:column;
+      align-items:center;justify-content:center;
+      gap:10px;padding:40px 32px;text-align:center;
+    }
+    .empty-ico{font-size:52px}
+    .empty-h{font-size:18px;font-weight:700}
+    .empty-p{font-size:14px;color:var(--hi);line-height:1.5}
+
+    /* ════════════════════════════
+       CREATE SCREEN
+    ════════════════════════════ */
+    .cr-wrap{padding:8px 0 calc(var(--sb)+80px)}
+    .cr-name{
+      font-size:17px;font-weight:700;
+      padding:0 18px 16px;
+    }
+
+    /* accordion row */
+    .acc-row{
+      border-top:1px solid var(--br);
+    }
+    .acc-header{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:14px 18px;cursor:pointer;
+      transition:background .15s;
+    }
+    .acc-header:active{background:rgba(255,255,255,.03)}
+    .acc-left{display:flex;flex-direction:column;gap:2px}
+    .acc-label{font-size:12px;color:var(--hi);font-weight:500}
+    .acc-value{font-size:15px;font-weight:700;color:var(--tx)}
+    .acc-value.placeholder{color:var(--hi);font-weight:500}
+    .acc-chevron{
+      font-size:11px;color:var(--hi);
+      transition:transform .22s;
+      flex-shrink:0;
+    }
+    .acc-chevron.open{transform:rotate(180deg)}
+
+    /* dropdown options */
+    .acc-options{
+      overflow:hidden;
+      transition:max-height .25s cubic-bezier(.4,0,.2,1);
+      max-height:0;
+    }
+    .acc-options.open{max-height:600px}
+    .acc-opts-inner{
+      padding:4px 0 8px;
+      display:flex;flex-direction:column;
+    }
+    .acc-opt{
+      padding:11px 18px 11px 32px;
+      font-size:15px;cursor:pointer;
+      display:flex;align-items:center;justify-content:space-between;
+      transition:background .12s;
+      color:var(--tx);
+    }
+    .acc-opt:active{background:rgba(255,255,255,.04)}
+    .acc-opt.sel{color:var(--red);font-weight:700}
+    .acc-opt-check{
+      width:18px;height:18px;border-radius:50%;
+      border:2px solid var(--br);
+      display:flex;align-items:center;justify-content:center;
+      flex-shrink:0;transition:all .15s;
+    }
+    .acc-opt.sel .acc-opt-check{
+      background:var(--red);border-color:var(--red);
+    }
+    .acc-opt-check::after{
+      content:'';width:6px;height:6px;border-radius:50%;
+      background:#fff;opacity:0;transition:opacity .15s;
+    }
+    .acc-opt.sel .acc-opt-check::after{opacity:1}
+
+    /* bottom bar on create */
+    .cr-bottom{
+      position:fixed;bottom:0;left:0;right:0;
+      padding:10px 18px calc(var(--sb)+10px);
+      background:linear-gradient(to top,var(--bg) 70%,transparent);
+      display:flex;gap:10px;z-index:5;
+    }
+    .cr-btn{
+      flex:1;height:50px;border-radius:14px;
+      background:var(--red);border:none;
+      color:#fff;font-size:15px;font-weight:800;
+      text-transform:uppercase;letter-spacing:.06em;
+      cursor:pointer;transition:opacity .15s;
+    }
+    .cr-btn:disabled{opacity:.3;pointer-events:none}
+    .cr-btn:not(:disabled):active{opacity:.8}
+    .cr-del{
+      flex:0 0 50px;height:50px;border-radius:14px;
+      background:var(--bg2);border:none;
+      color:var(--hi);font-size:18px;
+      display:flex;align-items:center;justify-content:center;
+      cursor:pointer;transition:all .15s;
+    }
+    .cr-del:active{color:#e8233a;background:var(--red2)}
+
+    /* done screen */
+    .done-wrap{
+      flex:1;display:flex;flex-direction:column;
+      align-items:center;justify-content:center;
+      padding:24px 20px calc(var(--sb)+24px);text-align:center;
+    }
+    .done-ico{font-size:72px;margin-bottom:16px}
+    .done-h{font-size:28px;font-weight:800;letter-spacing:-.3px;margin-bottom:6px}
+    .done-p{font-size:15px;color:var(--hi);margin-bottom:28px}
+    .done-stats{display:flex;gap:10px;margin-bottom:28px;width:100%}
+    .done-stat{
+      flex:1;background:var(--bg2);border-radius:14px;
+      padding:14px 8px;text-align:center;
+    }
+    .done-stat-v{font-size:22px;font-weight:800;color:var(--red)}
+    .done-stat-l{font-size:11px;color:var(--hi);margin-top:3px;text-transform:uppercase;letter-spacing:.05em}
+    .done-btn{
+      width:100%;height:50px;border-radius:14px;
+      background:var(--red);border:none;
+      color:#fff;font-size:16px;font-weight:800;
+      text-transform:uppercase;letter-spacing:.06em;
+      cursor:pointer;margin-bottom:10px;
+      transition:opacity .15s;
+    }
+    .done-btn:active{opacity:.8}
+    .done-btn2{
+      width:100%;height:50px;border-radius:14px;
+      background:transparent;border:2px solid var(--br);
+      color:var(--hi);font-size:15px;font-weight:600;
+      cursor:pointer;transition:all .15s;
+    }
+    .done-btn2:active{border-color:var(--red);color:var(--red)}
+  </style>
+</head>
+<body><div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback}=React;
+
+/* ── Telegram ── */
+const tg=window.Telegram?.WebApp;
+if(tg){tg.ready();tg.expand();}
+const hap=t=>{try{
+  if(t==='l')tg?.HapticFeedback?.impactOccurred('light');
+  if(t==='m')tg?.HapticFeedback?.impactOccurred('medium');
+  if(t==='s')tg?.HapticFeedback?.notificationOccurred('success');
+}catch{}}
+
+/* ── Audio ── */
+function beep(type){
+  try{
+    const c=new(window.AudioContext||window.webkitAudioContext)();
+    const p=(f,d,dl=0,v=.3)=>{
+      const o=c.createOscillator(),g=c.createGain();
+      o.connect(g);g.connect(c.destination);
+      o.frequency.value=f;o.type='square';
+      const t=c.currentTime+dl;
+      g.gain.setValueAtTime(v,t);
+      g.gain.exponentialRampToValueAtTime(.001,t+d);
+      o.start(t);o.stop(t+d);
+    };
+    if(type==='start'){p(880,.12);p(1100,.18,.15);}
+    if(type==='end'){p(1100,.1);p(880,.1,.14);p(660,.22,.28);}
+    if(type==='tick'){p(440,.05,0,.14);}
+  }catch{}
+}
+
+/* ── Utils ── */
+const fmt=s=>`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+const fmtS=s=>s<60?`${s}с`:fmt(s);
+const plural=(n,a,b,c)=>n%10===1&&n%100!==11?a:n%10>=2&&n%10<=4&&(n%100<10||n%100>=20)?b:c;
+
+/* ── Storage ── */
+const DEF=[
+  {id:'d1',label:'3 мин · Классик',  roundTime:180,rest:60, rounds:3,  explosive:null},
+  {id:'d2',label:'2 мин · Боец',     roundTime:120,rest:60, rounds:12, explosive:null},
+];
+const load=()=>{try{return JSON.parse(localStorage.getItem('bt5')||'null')||DEF}catch{return DEF}};
+const save=t=>{try{localStorage.setItem('bt5',JSON.stringify(t))}catch{}};
+const saveLast=id=>{try{localStorage.setItem('bt5_last',id)}catch{}};
+const loadLast=()=>{try{return localStorage.getItem('bt5_last')||'d1'}catch{return 'd1'}};
+
+/* ── Phase builder ── */
+function buildPhases(t){
+  const N=t.rounds===Infinity?999:t.rounds,ph=[];
+  for(let r=1;r<=N;r++){
+    if(t.explosive?.trigger==='end_minute'){
+      const w=t.explosive.warnTime,mins=Math.floor(t.roundTime/60);
+      for(let m=0;m<mins;m++){
+        ph.push({phase:'work',dur:60-w,round:r,label:'Раунд'});
+        ph.push({phase:'boom',dur:w,round:r,label:'Взрыв!'});
+      }
+      const rem=t.roundTime%60;
+      if(rem>0)ph.push({phase:'work',dur:rem,round:r,label:'Раунд'});
+    }else if(t.explosive?.trigger==='end_round'){
+      const w=t.explosive.warnTime;
+      ph.push({phase:'work',dur:t.roundTime-w,round:r,label:'Раунд'});
+      ph.push({phase:'boom',dur:w,round:r,label:'Взрыв!'});
+    }else{
+      ph.push({phase:'work',dur:t.roundTime,round:r,label:'Раунд'});
+    }
+    if(r<N)ph.push({phase:'rest',dur:t.rest,round:r,label:'Отдых'});
+  }
+  return ph;
+}
+
+/* ════════════════════════════
+   HOME SCREEN
+════════════════════════════ */
+function HomeScreen({timers,selId,onSelect,onCreate,visible}){
+  const timer=timers.find(t=>t.id===selId)||timers[0];
+  const phases=useRef(timer?buildPhases(timer):[]);
+  const [idx,setIdx]=useState(0);
+  const [left,setLeft]=useState(phases.current[0]?.dur||0);
+  const [run,setRun]=useState(false);
+  const [done,setDone]=useState(false);
+  const iv=useRef(null);
+  const idxR=useRef(0);
+  idxR.current=idx;
+
+  /* rebuild when timer changes */
+  useEffect(()=>{
+    if(!timer)return;
+    clearInterval(iv.current);
+    phases.current=buildPhases(timer);
+    setIdx(0);setLeft(phases.current[0]?.dur||0);
+    setRun(false);setDone(false);
+  },[selId]);
+
+  const stop=()=>{clearInterval(iv.current);setRun(false);}
+  const reset=()=>{
+    stop();
+    setIdx(0);setLeft(phases.current[0]?.dur||0);
+    setDone(false);hap('l');
+  }
+
+  function tick(){
+    setLeft(p=>{
+      if(p<=1){
+        const ni=idxR.current+1;
+        if(ni>=phases.current.length){
+          stop();setDone(true);beep('end');hap('s');return 0;
+        }
+        beep('end');hap('m');
+        setIdx(ni);
+        return phases.current[ni].dur;
+      }
+      if(p<=3){beep('tick');hap('l');}
+      return p-1;
+    });
+  }
+  function toggle(){
+    if(done)return;
+    if(run){stop();}
+    else{beep('start');hap('m');setRun(true);iv.current=setInterval(tick,1000);}
+  }
+  useEffect(()=>()=>clearInterval(iv.current),[]);
+
+  const cur=phases.current[idx];
+  const phase=done?'work':(cur?.phase||'work');
+  const totalR=timer?.rounds===Infinity?'∞':timer?.rounds||0;
+  const curR=cur?.round||1;
+  const showDots=timer&&timer.rounds!==Infinity&&timer.rounds<=15&&timer.rounds>1;
+
+  if(!timer){
+    return(
+      <div className={`screen${visible?'':' offl'}`}>
+        <div className="topbar">
+          <div className="topbar-title">🥊 Таймер</div>
+          <button className="menu-btn">≡</button>
+        </div>
+        <div className="empty">
+          <div className="empty-ico">⏱</div>
+          <div className="empty-h">Нет таймеров</div>
+          <div className="empty-p">Нажми + чтобы создать первый таймер</div>
+        </div>
+        <div className="timer-shelf">
+          <div className="t-cards"/>
+          <div className="t-add" onClick={()=>{hap('l');onCreate();}}>＋</div>
+        </div>
+      </div>
+    );
+  }
+
+  if(done){
+    return(
+      <div className={`screen${visible?'':' offl'}`}>
+        <div className="topbar">
+          <button className="back-btn" onClick={reset}>‹ Назад</button>
+          <div className="topbar-title">{timer.label}</div>
+          <div style={{width:60}}/>
+        </div>
+        <div className="done-wrap">
+          <div className="done-ico">🥊</div>
+          <div className="done-h">Тренировка завершена!</div>
+          <div className="done-p">Отличная работа, чемпион</div>
+          <div className="done-stats">
+            <div className="done-stat"><div className="done-stat-v">{totalR}</div><div className="done-stat-l">Раундов</div></div>
+            <div className="done-stat"><div className="done-stat-v">{fmt(timer.roundTime)}</div><div className="done-stat-l">Раунд</div></div>
+            <div className="done-stat"><div className="done-stat-v">{fmtS(timer.rest)}</div><div className="done-stat-l">Отдых</div></div>
+          </div>
+          <button className="done-btn" onClick={reset}>Ещё раз</button>
+          <button className="done-btn2" onClick={reset}>Изменить таймер</button>
+        </div>
+      </div>
+    );
+  }
+
+  return(
+    <div className={`screen${visible?'':' offl'}`}>
+      <div className="topbar">
+        <div className="topbar-title">
+          {run?`Раунд ${curR} / ${totalR}`:`${totalR} ${plural(timer.rounds===Infinity?5:timer.rounds,'раунд','раунда','раундов')}`}
+        </div>
+        <button className="menu-btn" onClick={()=>{if(run)stop();}}>≡</button>
+      </div>
+
+      <div className="home-center">
+        <div className={`home-phase ${phase}`}>
+          {run||idx>0 ? cur?.label : ''}
+        </div>
+        <div className="home-time">{fmt(left)}</div>
+        {showDots&&run&&(
+          <div className="rdots">
+            {Array.from({length:timer.rounds},(_,i)=>i+1).map(r=>(
+              <div key={r} className={`rdot${r<curR?' done':r===curR?' cur':''}`}/>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* timer shelf */}
+      <div className="timer-shelf">
+        <div className="t-cards">
+          {timers.map(t=>(
+            <div key={t.id}
+              className={`t-card${t.id===selId?' active':''}`}
+              onClick={()=>{hap('l');onSelect(t.id);}}>
+              <div className="t-card-lbl">{t.rounds===Infinity?'∞':`${t.rounds} р`}</div>
+              <div className="t-card-val">{fmt(t.roundTime)}</div>
+            </div>
+          ))}
+        </div>
+        <div className="t-add" onClick={()=>{hap('l');onCreate();}}>＋</div>
+      </div>
+
+      {/* controls */}
+      <div className="btn-area">
+        {run||idx>0?(
+          <div className="btn-pair">
+            <button className="btn-reset" onClick={reset}>Сброс</button>
+            <button className={`btn-stop${run?' running':''}`} onClick={toggle}>
+              {run?'Стоп':'Старт'}
+            </button>
+          </div>
+        ):(
+          <button className="btn-start" onClick={toggle}>Старт</button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════
+   CREATE SCREEN
+════════════════════════════ */
+
+/* Options data */
+const RT_OPTS=[60,90,120,150,180,210,240,270,300,360,420,480,540,600];
+const REST_OPTS=[15,30,45,60,90,120,180];
+const ROUNDS_OPTS=[...Array.from({length:15},(_,i)=>i+1),'∞'];
+const EXP_OPTS=[
+  {v:null,      label:'Без взрывов'},
+  {v:'end_round',label:'В конце раунда'},
+  {v:'end_minute',label:'В конце каждой минуты'},
+];
+const WARN_OPTS=[5,10,15,20,30];
+
+function AccRow({label,value,open,onToggle,children}){
+  return(
+    <div className="acc-row">
+      <div className="acc-header" onClick={onToggle}>
+        <div className="acc-left">
+          <div className="acc-label">{label}</div>
+          <div className={`acc-value${value===null?' placeholder':''}`}>
+            {value===null?'Выбрать...':value}
+          </div>
+        </div>
+        <div className={`acc-chevron${open?' open':''}`}>▼</div>
+      </div>
+      <div className={`acc-options${open?' open':''}`}>
+        <div className="acc-opts-inner">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function Opt({label,sel,onClick}){
+  return(
+    <div className={`acc-opt${sel?' sel':''}`} onClick={()=>{hap('l');onClick();}}>
+      <span>{label}</span>
+      <div className="acc-opt-check"/>
+    </div>
+  );
+}
+
+function CreateScreen({onBack,onCreate,editTimer}){
+  const [open,setOpen]=useState(null); // which accordion is open
+  const [rt,setRt]=useState(editTimer?.roundTime||null);
+  const [rest,setRest]=useState(editTimer?.rest||null);
+  const [rds,setRds]=useState(editTimer?
+    (editTimer.rounds===Infinity?'∞':editTimer.rounds):null);
+  const [exp,setExp]=useState(editTimer?.explosive?.trigger||null);
+  const [warn,setWarn]=useState(editTimer?.explosive?.warnTime||10);
+
+  const toggle=key=>setOpen(o=>o===key?null:key);
+  const pick=(setter,key,val,nextKey)=>{
+    setter(val);
+    // auto-advance to next field
+    setTimeout(()=>setOpen(nextKey||null),200);
+  };
+
+  const ok=rt&&rest&&rds!==null;
+
+  function submit(){
+    hap('s');
+    const label=`${fmt(rt)} · ${rds==='∞'?'∞':rds} ${plural(rds==='∞'?5:rds,'раунд','раунда','раундов')}`;
+    onCreate({
+      id:editTimer?.id||Date.now().toString(),
+      label,roundTime:rt,rest,
+      rounds:rds==='∞'?Infinity:rds,
+      explosive:exp?{trigger:exp,warnTime:warn}:null,
+    });
+  }
+
+  const rtLabel=rt?fmt(rt):null;
+  const restLabel=rest?fmtS(rest):null;
+  const rdsLabel=rds!==null?(rds==='∞'?'∞':`${rds} ${plural(rds==='∞'?5:rds,'раунд','раунда','раундов')}`):null;
+  const expLabel=exp===null&&exp!==undefined?(exp===null?'Без взрывов':null):
+    exp?EXP_OPTS.find(o=>o.v===exp)?.label:'Без взрывов';
+
+  return(
+    <div className="screen">
+      <div className="topbar">
+        <button className="back-btn" onClick={onBack}>✕ Отмена</button>
+        <div className="topbar-title">Новый таймер</div>
+        <div style={{width:72}}/>
+      </div>
+
+      <div className="scr">
+        <div className="cr-wrap">
+          <div className="cr-name">таймер {new Date().getSeconds()%10+1}</div>
+
+          <AccRow label="Время раунда" value={rtLabel} open={open==='rt'} onToggle={()=>toggle('rt')}>
+            {RT_OPTS.map(s=>(
+              <Opt key={s} label={fmt(s)} sel={rt===s} onClick={()=>pick(setRt,'rt',s,'rest')}/>
+            ))}
+          </AccRow>
+
+          <AccRow label="Отдых" value={restLabel} open={open==='rest'} onToggle={()=>toggle('rest')}>
+            {REST_OPTS.map(s=>(
+              <Opt key={s} label={fmtS(s)} sel={rest===s} onClick={()=>pick(setRest,'rest',s,'rds')}/>
+            ))}
+          </AccRow>
+
+          <AccRow label="Раунды" value={rdsLabel} open={open==='rds'} onToggle={()=>toggle('rds')}>
+            {ROUNDS_OPTS.map(n=>(
+              <Opt key={n} label={n==='∞'?'Бесконечно':String(n)} sel={rds===n}
+                onClick={()=>pick(setRds,'rds',n,'exp')}/>
+            ))}
+          </AccRow>
+
+          <AccRow label="Взрывная работа" value={exp===null||exp===undefined?'Без взрывов':EXP_OPTS.find(o=>o.v===exp)?.label} open={open==='exp'} onToggle={()=>toggle('exp')}>
+            {EXP_OPTS.map(o=>(
+              <Opt key={o.v||'none'} label={o.label} sel={exp===o.v}
+                onClick={()=>pick(setExp,'exp',o.v,o.v?'warn':null)}/>
+            ))}
+          </AccRow>
+
+          {exp&&(
+            <AccRow label="Предупреждение до взрыва"
+              value={warn?`${warn}с`:null}
+              open={open==='warn'} onToggle={()=>toggle('warn')}>
+              {WARN_OPTS.map(s=>(
+                <Opt key={s} label={`${s} секунд`} sel={warn===s}
+                  onClick={()=>pick(setWarn,'warn',s,null)}/>
+              ))}
+            </AccRow>
+          )}
+
+          <div style={{height:80}}/>
+        </div>
+      </div>
+
+      <div className="cr-bottom">
+        <button className="cr-btn" disabled={!ok} onClick={submit}>Создать</button>
+        <button className="cr-del" onClick={onBack}>🗑</button>
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════
+   APP
+════════════════════════════ */
+function App(){
+  const [timers,setTimers]=useState(load);
+  const [selId,setSelId]=useState(()=>{
+    const last=loadLast();
+    const t=load();
+    return t.find(x=>x.id===last)?last:t[0]?.id||null;
+  });
+  const [screen,setScreen]=useState('home');
+
+  function handleSelect(id){setSelId(id);saveLast(id);}
+  function handleCreate(){setScreen('create');}
+  function handleSave(t){
+    const idx=timers.findIndex(x=>x.id===t.id);
+    const next=idx>=0?timers.map(x=>x.id===t.id?t:x):[...timers,t];
+    setTimers(next);save(next);
+    setSelId(t.id);saveLast(t.id);
+    setScreen('home');
+  }
+
+  return(
+    <>
+      <HomeScreen
+        timers={timers}
+        selId={selId}
+        onSelect={handleSelect}
+        onCreate={handleCreate}
+        visible={screen==='home'}
+      />
+      {screen==='create'&&(
+        <CreateScreen
+          onBack={()=>setScreen('home')}
+          onCreate={handleSave}
+        />
+      )}
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

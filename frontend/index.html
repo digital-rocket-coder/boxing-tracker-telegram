@@ -9,22 +9,30 @@
 </head>
 <body>
   <div id="app">
+
     <div id="loader" class="loader-wrap">
       <div class="spinner"></div>
     </div>
 
     <div id="main" class="hidden">
+
       <!-- Header -->
       <header class="header">
-        <div class="header-title">
-          <span class="emoji">🥊</span>
-          <div>
-            <div class="user-name" id="userName"></div>
-            <div class="sub-title" id="subTitle"></div>
-          </div>
+        <div class="header-left">
+          <div class="header-rounds" id="headerRounds">60 занятий</div>
+          <div class="header-name" id="userName">Боксёр</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
           <div id="readOnlyBadge" class="readonly-badge hidden">👁 Просмотр</div>
+          <div class="hamburger">☰</div>
         </div>
       </header>
+
+      <!-- Big counter -->
+      <div class="big-counter">
+        <div class="big-number" id="bigNumber">0:00</div>
+        <div class="big-label" id="bigLabel">занятий выполнено</div>
+      </div>
 
       <!-- Stats -->
       <section class="stats">
@@ -47,7 +55,7 @@
         <div class="progress-bar">
           <div class="progress-fill" id="progressFill"></div>
         </div>
-        <div class="progress-label" id="progressLabel"></div>
+        <div class="progress-label" id="progressLabel">0%</div>
       </div>
 
       <!-- Last date -->
@@ -59,9 +67,10 @@
       <!-- Share button -->
       <div class="bottom-bar">
         <button class="btn-share" id="btnShare">
-          <span>📤</span> Отправить тренеру
+          📤 &nbsp;Отправить тренеру
         </button>
       </div>
+
     </div>
 
     <!-- Dialog -->
@@ -71,10 +80,11 @@
         <div class="dialog-body" id="dialogBody"></div>
         <div class="dialog-actions">
           <button class="btn-cancel" id="btnCancel">Отмена</button>
-          <button class="btn-confirm" id="btnConfirm">Да, занятие прошло</button>
+          <button class="btn-confirm" id="btnConfirm">Да</button>
         </div>
       </div>
     </div>
+
   </div>
 
   <script src="env.js"></script>

@@ -51,8 +51,14 @@ function render(data) {
   const { user, subscription, stats, cells } = data;
 
   // Header
-  $('userName').textContent = user.first_name || user.username || 'Боксёр';
-  $('subTitle').textContent = subscription.title + ' · ' + subscription.total + ' занятий';
+  $('userName').textContent   = user.first_name || user.username || 'Боксёр';
+  $('headerRounds').textContent = subscription.total + ' занятий · ' + subscription.title;
+
+  // Big counter (таймер-стиль: 12:00 = 12 выполнено из 60)
+  const done = stats.completed;
+  const total = subscription.total;
+  $('bigNumber').textContent = done + ':' + String(total - done).padStart(2, '0');
+  $('bigLabel').textContent  = `занятий выполнено из ${total}`;
 
   // Read-only badge
   if (READ_ONLY) {
@@ -71,7 +77,7 @@ function render(data) {
   // Last session date
   if (stats.last_date) {
     const d = new Date(stats.last_date);
-    $('lastDate').textContent = 'Последнее занятие: ' + d.toLocaleDateString('ru-RU', {
+    $('lastDate').textContent = 'Последнее: ' + d.toLocaleDateString('ru-RU', {
       day: 'numeric', month: 'long', year: 'numeric'
     });
     $('lastDate').classList.remove('hidden');
