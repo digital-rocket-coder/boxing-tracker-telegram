@@ -5,6 +5,17 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover"/>
   <title>Боксёрский таймер</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script>
+  window.onerror=function(msg,src,line,col,err){
+    var d=document.getElementById('root');
+    if(d)d.innerHTML='<div style="color:#EDE136;padding:20px;font-family:monospace;font-size:13px;white-space:pre-wrap">ERROR:\n'+msg+'\n'+src+':'+line+'</div>';
+    return false;
+  };
+  window.addEventListener('unhandledrejection',function(e){
+    var d=document.getElementById('root');
+    if(d)d.innerHTML='<div style="color:#EDE136;padding:20px;font-family:monospace;font-size:13px">PROMISE ERROR:\n'+(e.reason||e)+'</div>';
+  });
+  </script>
   <script>/**
  * @license React
  * react.production.min.js
