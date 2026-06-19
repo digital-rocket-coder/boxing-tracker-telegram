@@ -2,13 +2,13 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover"/>
   <title>Боксёрский таймер</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <style>
-    html,body,#root{height:100%;overflow:hidden;margin:0}
+    html,body,#root{height:100%;height:100dvh;overflow:hidden;margin:0}
     body{background:#25262D;overscroll-behavior:none;user-select:none;-webkit-tap-highlight-color:transparent;font-family:'Montserrat',system-ui,sans-serif}
     *{box-sizing:border-box;scrollbar-width:none}
     *::-webkit-scrollbar{display:none}
@@ -41,7 +41,18 @@ var T={
 };
 
 var tg=window.Telegram&&window.Telegram.WebApp;
-if(tg){tg.ready();tg.expand();}
+if(tg){
+  tg.ready();
+  tg.expand();
+  /* Fix Telegram Mini App viewport height on iOS/Android */
+  function applyTgHeight(){
+    var h=tg.viewportStableHeight||tg.viewportHeight||window.innerHeight;
+    document.documentElement.style.height=h+'px';
+    document.body.style.height=h+'px';
+  }
+  applyTgHeight();
+  tg.onEvent('viewportChanged',function(){if(!tg.isExpanded)tg.expand();applyTgHeight();});
+}
 
 /* ── Utils ── */
 function fmt(s){return Math.floor(s/60)+':'+(''+(s%60)).padStart(2,'0');}
@@ -97,25 +108,34 @@ function playElectronic(type){
   if(type==='boom'){tone(1320,.08);tone(1760,.12,.1);}
   if(type==='tick'){tone(440,.05,0,.14);}
 }
+
 function playGong(type){
   var ctx=new(window.AudioContext||window.webkitAudioContext)();
   var now=ctx.currentTime;
-  function strike(base,dur,vol){
-    vol=vol||0.4;
+  /* Compressor raises perceived loudness without clipping */
+  var comp=ctx.createDynamicsCompressor();
+  comp.threshold.value=-10;comp.knee.value=8;
+  comp.ratio.value=5;comp.attack.value=0.003;comp.release.value=0.3;
+  comp.connect(ctx.destination);
+  function strike(base,dur,vol,off){
+    vol=vol||0.7;off=off||0;var t=now+off;
     [1,2.756,5.404,8.933,13.344].forEach(function(p,i){
       var o=ctx.createOscillator(),g=ctx.createGain();
-      o.connect(g);g.connect(ctx.destination);
+      o.connect(g);g.connect(comp);
       o.frequency.value=base*p;o.type='sine';
-      g.gain.setValueAtTime(vol*[1,.6,.3,.15,.08][i],now);
-      g.gain.exponentialRampToValueAtTime(0.0001,now+dur*(1/(i+1)*1.5));
-      o.start(now);o.stop(now+dur+.1);
+      g.gain.setValueAtTime(vol*[1,.6,.3,.15,.08][i],t);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+dur*(1/(i+1)*1.5));
+      o.start(t);o.stop(t+dur+.5);
     });
   }
-  if(type==='start') strike(220,2.5,.45);
-  if(type==='end') [0,.28,.52].forEach(function(d){setTimeout(function(){strike(220,1.5,.35);},d*1000);});
-  if(type==='boom') strike(440,.8,.3);
-  if(type==='tick') strike(660,.3,.15);
+  /* Louder (vol .88) and much longer (5.5 s) start gong; lower base for richness */
+  if(type==='start') strike(180,5.5,.88);
+  /* Three strikes scheduled in the Web Audio timeline (no setTimeout drift) */
+  if(type==='end') [0,.4,.8].forEach(function(d){strike(180,2.8,.75,d);});
+  if(type==='boom') strike(440,1.2,.55);
+  if(type==='tick') strike(660,.5,.3);
 }
+
 function beep(type){try{loadSound()==='gong'?playGong(type):playElectronic(type);}catch(e){}}
 function hap(t){
   try{
@@ -302,7 +322,7 @@ function CreateScreen(props){
   if(showWarn) fields.push(h(DSField,{key:'warn',label:'ПРЕДУПРЕЖДЕНИЕ',value:warnStr,options:WARN_LABELS,onChange:setWarnStr}));
 
   return h('div',{style:{
-    position:'fixed',inset:0,zIndex:2,background:T.bg,
+    position:'fixed',top:0,right:0,bottom:0,left:0,zIndex:2,background:T.bg,
     display:'flex',flexDirection:'column',
     transform:active?'translateX(0)':'translateX(100%)',
     transition:'transform .3s cubic-bezier(.3,0,.2,1)'
@@ -344,20 +364,33 @@ function HomeScreen(props){
   var s4=useState(false); var done=s4[0],setDone=s4[1];
   var s5=useState(false); var menu=s5[0],setMenu=s5[1];
   var s6=useState(loadSound); var snd=s6[0],setSnd=s6[1];
+  /* pre: seconds left in pre-start countdown (0 = not counting) */
+  var s7=useState(0); var pre=s7[0],setPre=s7[1];
+
   var ivRef=useRef(null);
+  var preRef=useRef(null);
   var idxRef=useRef(0);
+  var preValRef=useRef(0);
   idxRef.current=idx;
 
   useEffect(function(){
     if(!timer)return;
     clearInterval(ivRef.current);
+    clearInterval(preRef.current);
     phasesRef.current=buildPhases(timer);
     setIdx(0);setLeft(phasesRef.current[0]?phasesRef.current[0].dur:0);
-    setRun(false);setDone(false);
+    setRun(false);setDone(false);setPre(0);
   },[selId]);
 
   function stop(){clearInterval(ivRef.current);setRun(false);}
-  function reset(){stop();setIdx(0);setLeft(phasesRef.current[0]?phasesRef.current[0].dur:0);setDone(false);hap('l');}
+  function reset(){
+    clearInterval(ivRef.current);
+    clearInterval(preRef.current);
+    setPre(0);preValRef.current=0;
+    setRun(false);
+    setIdx(0);setLeft(phasesRef.current[0]?phasesRef.current[0].dur:0);
+    setDone(false);hap('l');
+  }
 
   function tick(){
     setLeft(function(prev){
@@ -373,26 +406,57 @@ function HomeScreen(props){
       return prev-1;
     });
   }
+
   function toggle(){
     if(done)return;
-    if(run)stop();
-    else{beep('start');hap('m');setRun(true);ivRef.current=setInterval(tick,1000);}
+    if(run){stop();return;}
+    /* Cancel pre-countdown if already counting */
+    if(preValRef.current>0){
+      clearInterval(preRef.current);
+      setPre(0);preValRef.current=0;
+      return;
+    }
+    /* Start 5-second pre-countdown */
+    preValRef.current=5;
+    setPre(5);
+    beep('tick');hap('l');
+    preRef.current=setInterval(function(){
+      preValRef.current--;
+      if(preValRef.current<=0){
+        clearInterval(preRef.current);
+        setPre(0);
+        beep('start');hap('m');
+        setRun(true);
+        ivRef.current=setInterval(tick,1000);
+      } else {
+        setPre(preValRef.current);
+        beep('tick');hap('l');
+      }
+    },1000);
   }
-  useEffect(function(){return function(){clearInterval(ivRef.current);};},[]);
+
+  useEffect(function(){return function(){
+    clearInterval(ivRef.current);
+    clearInterval(preRef.current);
+  };},[]);
 
   var cur=phasesRef.current[idx];
   var totalR=timer&&timer.rounds===Infinity?'∞':(timer?timer.rounds:0);
   var curR=cur?cur.round:1;
   var isBoom=!done&&cur&&cur.boomAt>0&&left<=cur.boomAt;
   var isRest=!done&&cur&&cur.phase==='rest';
-  var dispLabel=isBoom?'ВЗРЫВ!':isRest?'ОТДЫХ':(run||idx>0)?'ROUND':'ROUNDS';
-  var dispCount=(run||idx>0)?curR:totalR;
-  var dispTime=fmt(left);
+
+  var inPre=pre>0;
+  var dispLabel=inPre?'СТАРТ ЧЕРЕЗ':(isBoom?'ВЗРЫВ!':isRest?'ОТДЫХ':(run||idx>0)?'ROUND':'ROUNDS');
+  var dispCount=inPre?totalR:((run||idx>0)?curR:totalR);
+  var dispTime=inPre?String(pre):fmt(left);
+  /* Bigger font for single-digit countdown */
+  var dispSize=inPre?120:88;
 
   function chgSound(s){saveSound(s);setSnd(s);hap('l');}
 
   /* Done screen */
-  if(done) return h('div',{style:{position:'fixed',inset:0,display:'flex',flexDirection:'column',background:T.bg}},
+  if(done) return h('div',{style:{position:'fixed',top:0,right:0,bottom:0,left:0,display:'flex',flexDirection:'column',background:T.bg}},
     h(DSHeaderBand,{title:'ТРЕНИРОВКА ЗАВЕРШЕНА!'}),
     h('div',{style:{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:16,gap:16}},
       h('div',{style:{fontSize:72}},'🥊'),
@@ -413,7 +477,7 @@ function HomeScreen(props){
 
   /* Main screen */
   return h('div',{style:{
-    position:'fixed',inset:0,display:'flex',flexDirection:'column',background:T.bg,
+    position:'fixed',top:0,right:0,bottom:0,left:0,display:'flex',flexDirection:'column',background:T.bg,
     transform:active?'none':'translateX(-25%)',
     opacity:active?1:0.5,
     transition:'transform .3s cubic-bezier(.3,0,.2,1),opacity .3s',
@@ -427,7 +491,7 @@ function HomeScreen(props){
       color:T.ink,fontSize:26,lineHeight:1,padding:8,fontWeight:900
     }},'≡'),
     /* timer display */
-    h(DSTimerDisplay,{flush:true,count:dispCount,label:dispLabel,time:dispTime,timeSize:88,style:{flex:1}}),
+    h(DSTimerDisplay,{flush:true,count:dispCount,label:dispLabel,time:dispTime,timeSize:dispSize,style:{flex:1}}),
     /* shelf */
     h('div',{style:{padding:'10px 12px 6px',borderTop:'1px solid '+T.raised}},
       h('div',{style:{display:'flex',gap:10,overflowX:'auto',alignItems:'stretch'}},
@@ -448,14 +512,18 @@ function HomeScreen(props){
     ),
     /* buttons */
     h('div',{style:{padding:'10px 16px',paddingBottom:'calc(env(safe-area-inset-bottom,0px) + 16px)',display:'flex',gap:12}},
-      run||idx>0?h(React.Fragment,null,
+      (run||idx>0||inPre)?h(React.Fragment,null,
         h(DSIconButton,{icon:'trash',onClick:reset,box:60,style:{background:T.raised}}),
-        h(DSButton,{variant:run?'primary':'disabled',onClick:toggle,style:{flex:1,height:60,fontSize:22}},run?'STOP':'START')
+        h(DSButton,{
+          variant:(run||inPre)?'primary':'disabled',
+          onClick:toggle,
+          style:{flex:1,height:60,fontSize:22}
+        },run?'STOP':inPre?'ОТМЕНА':'START')
       ):h(DSButton,{onClick:toggle,style:{height:60,fontSize:22}},'START')
     ),
     /* menu sheet */
     menu?h('div',{onClick:function(){setMenu(false);},style:{
-      position:'fixed',inset:0,zIndex:10,background:'rgba(0,0,0,.6)',display:'flex',alignItems:'flex-end'
+      position:'fixed',top:0,right:0,bottom:0,left:0,zIndex:10,background:'rgba(0,0,0,.6)',display:'flex',alignItems:'flex-end'
     }},
       h('div',{onClick:function(e){e.stopPropagation();},style:{
         width:'100%',background:T.raised,borderRadius:'12px 12px 0 0',
