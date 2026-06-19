@@ -317,7 +317,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 })();
 </script>
   <style>
-    html,body,#root{height:100%;height:100dvh;overflow:hidden;margin:0}
+    html,body{margin:0;padding:0;height:100%}#root{position:fixed;top:0;left:0;right:0;bottom:0;background:#25262D;overflow:hidden}
     body{background:#25262D;overscroll-behavior:none;user-select:none;-webkit-tap-highlight-color:transparent;font-family:'Montserrat',system-ui,sans-serif}
     *{box-sizing:border-box;scrollbar-width:none}
     *::-webkit-scrollbar{display:none}
@@ -620,7 +620,7 @@ function CreateScreen(props){
   if(showWarn) fields.push(h(DSField,{key:'warn',label:'ПРЕДУПРЕЖДЕНИЕ',value:warnStr,options:WARN_LABELS,onChange:setWarnStr}));
 
   return h('div',{style:{
-    position:'fixed',top:0,right:0,bottom:0,left:0,zIndex:2,background:T.bg,
+    position:'absolute',top:0,right:0,bottom:0,left:0,zIndex:2,background:T.bg,
     display:'flex',flexDirection:'column',
     transform:active?'translateX(0)':'translateX(100%)',
     transition:'transform .3s cubic-bezier(.3,0,.2,1)'
@@ -754,7 +754,7 @@ function HomeScreen(props){
   function chgSound(s){saveSound(s);setSnd(s);hap('l');}
 
   /* Done screen */
-  if(done) return h('div',{style:{position:'fixed',top:0,right:0,bottom:0,left:0,display:'flex',flexDirection:'column',background:T.bg}},
+  if(done) return h('div',{style:{position:'absolute',top:0,right:0,bottom:0,left:0,display:'flex',flexDirection:'column',background:T.bg}},
     h(DSHeaderBand,{title:'ТРЕНИРОВКА ЗАВЕРШЕНА!'}),
     h('div',{style:{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:16,gap:16}},
       h('div',{style:{fontSize:72}},'🥊'),
@@ -775,7 +775,7 @@ function HomeScreen(props){
 
   /* Main screen */
   return h('div',{style:{
-    position:'fixed',top:0,right:0,bottom:0,left:0,display:'flex',flexDirection:'column',background:T.bg,
+    position:'absolute',top:0,right:0,bottom:0,left:0,display:'flex',flexDirection:'column',
     transform:active?'none':'translateX(-25%)',
     opacity:active?1:0.5,
     transition:'transform .3s cubic-bezier(.3,0,.2,1),opacity .3s',
@@ -821,7 +821,7 @@ function HomeScreen(props){
     ),
     /* menu sheet */
     menu?h('div',{onClick:function(){setMenu(false);},style:{
-      position:'fixed',top:0,right:0,bottom:0,left:0,zIndex:10,background:'rgba(0,0,0,.6)',display:'flex',alignItems:'flex-end'
+      position:'absolute',top:0,right:0,bottom:0,left:0,zIndex:10,background:'rgba(0,0,0,.6)',display:'flex',alignItems:'flex-end'
     }},
       h('div',{onClick:function(e){e.stopPropagation();},style:{
         width:'100%',background:T.raised,borderRadius:'12px 12px 0 0',
