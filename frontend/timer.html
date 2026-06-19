@@ -237,25 +237,40 @@ function playElectronic(type){
   if(type==='boom'){tone(1320,.08);tone(1760,.12,.1);}
   if(type==='tick'){tone(440,.05,0,.14);}
 }
-/* Preload gong audio files */
-var _gongBig = new Audio('sounds/boxing-gong.mp3');
-var _gongShort = new Audio('sounds/gong-sound.mp3');
-_gongBig.preload='auto'; _gongShort.preload='auto';
-
 function playGong(type){
-  function play(audio, delay, stopAfter){
-    delay=delay||0;
-    setTimeout(function(){
-      var a=audio.cloneNode();
-      a.volume=1;
-      a.play().catch(function(){});
-      if(stopAfter) setTimeout(function(){a.pause();},stopAfter);
-    }, delay*1000);
-  }
-  if(type==='start') play(_gongBig);                        /* 16.6s — пусть звенит */
-  if(type==='end'){ play(_gongBig); play(_gongBig,1); play(_gongBig,2); } /* 3 удара */
-  if(type==='boom') play(_gongShort);                       /* 8.3s — однократный */
-  if(type==='tick') play(_gongShort, 0, 600);               /* обрезать после 0.6s */
+  try{
+    var ctx=new(window.AudioContext||window.webkitAudioContext)();
+    var now=ctx.currentTime;
+    /* Hard limiter to keep it loud but clean */
+    var lim=ctx.createDynamicsCompressor();
+    lim.threshold.value=-4;lim.knee.value=1;lim.ratio.value=20;
+    lim.attack.value=0.001;lim.release.value=0.1;
+    lim.connect(ctx.destination);
+    /*
+     * Professional boxing bell — inharmonic brass partials:
+     * ratios 1 / 1.78 / 2.50 / 3.29 / 4.44 give the characteristic
+     * metallic "DING" of a real ring bell.
+     */
+    function bell(off,vol,decay){
+      vol=vol||1;off=off||0;decay=decay||4.5;
+      var t=now+off;
+      [[980,1.0],[1748,0.68],[2450,0.40],[3224,0.20],[4350,0.09],[6050,0.04]].forEach(function(p,i){
+        var o=ctx.createOscillator(),g=ctx.createGain();
+        o.connect(g);g.connect(lim);
+        o.type='sine';o.frequency.value=p[0];
+        var d=decay*Math.pow(0.62,i); /* higher partials decay faster */
+        g.gain.setValueAtTime(0,t);
+        g.gain.linearRampToValueAtTime(p[1]*vol,t+0.003); /* 3ms attack = physical strike */
+        g.gain.exponentialRampToValueAtTime(0.0001,t+d);
+        o.start(t);o.stop(t+d+0.1);
+      });
+    }
+    if(type==='start') bell(0,1,4.5);
+    /* End of round: 3 rapid strikes like a real boxing bell */
+    if(type==='end'){bell(0,.95,4);bell(.38,.9,4);bell(.76,.85,4);}
+    if(type==='boom') bell(0,.8,3);
+    if(type==='tick') bell(0,.45,0.7); /* light tap for countdown */
+  }catch(e){}
 }
 function beep(type){try{loadSound()==='gong'?playGong(type):playElectronic(type);}catch(e){}}
 
