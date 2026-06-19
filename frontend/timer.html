@@ -229,18 +229,19 @@ var _gongShort = new Audio('sounds/gong-sound.mp3');
 _gongBig.preload='auto'; _gongShort.preload='auto';
 
 function playGong(type){
-  function play(audio, delay){
+  function play(audio, delay, stopAfter){
     delay=delay||0;
     setTimeout(function(){
       var a=audio.cloneNode();
       a.volume=1;
       a.play().catch(function(){});
+      if(stopAfter) setTimeout(function(){a.pause();},stopAfter);
     }, delay*1000);
   }
-  if(type==='start') play(_gongBig);
-  if(type==='end'){ play(_gongBig); play(_gongBig,.8); play(_gongBig,1.6); }
-  if(type==='boom') play(_gongShort);
-  if(type==='tick') play(_gongShort);
+  if(type==='start') play(_gongBig);                        /* 16.6s — пусть звенит */
+  if(type==='end'){ play(_gongBig); play(_gongBig,1); play(_gongBig,2); } /* 3 удара */
+  if(type==='boom') play(_gongShort);                       /* 8.3s — однократный */
+  if(type==='tick') play(_gongShort, 0, 600);               /* обрезать после 0.6s */
 }
 function beep(type){try{loadSound()==='gong'?playGong(type):playElectronic(type);}catch(e){}}
 
