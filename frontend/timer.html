@@ -223,27 +223,24 @@ function playElectronic(type){
   if(type==='boom'){tone(1320,.08);tone(1760,.12,.1);}
   if(type==='tick'){tone(440,.05,0,.14);}
 }
+/* Preload gong audio files */
+var _gongBig = new Audio('sounds/boxing-gong.mp3');
+var _gongShort = new Audio('sounds/gong-sound.mp3');
+_gongBig.preload='auto'; _gongShort.preload='auto';
+
 function playGong(type){
-  var ctx=new(window.AudioContext||window.webkitAudioContext)();
-  var now=ctx.currentTime;
-  var comp=ctx.createDynamicsCompressor();
-  comp.threshold.value=-10;comp.knee.value=8;comp.ratio.value=5;comp.attack.value=0.003;comp.release.value=0.3;
-  comp.connect(ctx.destination);
-  function strike(base,dur,vol,off){
-    vol=vol||0.7;off=off||0;var t=now+off;
-    [1,2.756,5.404,8.933,13.344].forEach(function(p,i){
-      var o=ctx.createOscillator(),g=ctx.createGain();
-      o.connect(g);g.connect(comp);
-      o.frequency.value=base*p;o.type='sine';
-      g.gain.setValueAtTime(vol*[1,.6,.3,.15,.08][i],t);
-      g.gain.exponentialRampToValueAtTime(0.0001,t+dur*(1/(i+1)*1.5));
-      o.start(t);o.stop(t+dur+.5);
-    });
+  function play(audio, delay){
+    delay=delay||0;
+    setTimeout(function(){
+      var a=audio.cloneNode();
+      a.volume=1;
+      a.play().catch(function(){});
+    }, delay*1000);
   }
-  if(type==='start') strike(180,5.5,.88);
-  if(type==='end') [0,.4,.8].forEach(function(d){strike(180,2.8,.75,d);});
-  if(type==='boom') strike(440,1.2,.55);
-  if(type==='tick') strike(660,.5,.3);
+  if(type==='start') play(_gongBig);
+  if(type==='end'){ play(_gongBig); play(_gongBig,.8); play(_gongBig,1.6); }
+  if(type==='boom') play(_gongShort);
+  if(type==='tick') play(_gongShort);
 }
 function beep(type){try{loadSound()==='gong'?playGong(type):playElectronic(type);}catch(e){}}
 
