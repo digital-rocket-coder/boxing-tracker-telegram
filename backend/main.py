@@ -9,12 +9,13 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import sqlite3
 
 WEBAPP_URL = os.getenv("WEBAPP_URL", "https://boxing-tracker-telegram.vercel.app")
+API_URL    = os.getenv("API_URL", "")   # e.g. https://boxing-tracker-telegram-production.up.railway.app
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 DB_PATH = os.getenv("DB_PATH", "boxing.db")
@@ -124,9 +125,28 @@ def get_current_user(authorization: Optional[str] = Header(None), db: sqlite3.Co
 
 # ─── App ─────────────────────────────────────────────────────────────────────
 
+def _tg(method: str, payload: dict):
+    if not BOT_TOKEN:
+        return
+    data = json.dumps(payload).encode()
+    req = urllib.request.Request(
+        f"https://api.telegram.org/bot{BOT_TOKEN}/{method}",
+        data=data,
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        urllib.request.urlopen(req, timeout=5)
+    except Exception as e:
+        print(f"Telegram {method} error: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    if BOT_TOKEN and API_URL:
+        webhook_url = API_URL.rstrip("/") + "/webhook"
+        _tg("setWebhook", {"url": webhook_url, "drop_pending_updates": True})
+        print(f"Webhook registered: {webhook_url}")
     yield
 
 
@@ -276,3 +296,42 @@ def send_share_card(tg_user=Depends(get_current_user), db=Depends(get_db)):
 
     send_telegram_message(tg_user["id"], text, reply_markup)
     return {"ok": True, "share_url": share_url}
+
+
+# ─── Telegram webhook ─────────────────────────────────────────────────────────
+
+@app.post("/webhook")
+async def telegram_webhook(request: Request):
+    update = await request.json()
+    msg = update.get("message") or update.get("edited_message")
+    if not msg:
+        return {"ok": True}
+
+    chat_id = msg.get("chat", {}).get("id")
+    text = (msg.get("text") or "").split("@")[0]  # strip @botname suffix
+
+    timer_url = WEBAPP_URL.rstrip("/") + "/timer.html"
+
+    if text == "/start":
+        _tg("sendMessage", {
+            "chat_id": chat_id,
+            "text": "Привет! Выбери что открыть 👇",
+            "reply_markup": {
+                "inline_keyboard": [
+                    [{"text": "⏱ Таймер", "web_app": {"url": timer_url}}],
+                    [{"text": "🥊 Трекер", "web_app": {"url": WEBAPP_URL}}],
+                ]
+            },
+        })
+    elif text == "/timer":
+        _tg("sendMessage", {
+            "chat_id": chat_id,
+            "text": "Боксёрский таймер 🥊",
+            "reply_markup": {
+                "inline_keyboard": [[
+                    {"text": "⏱ Открыть таймер", "web_app": {"url": timer_url}}
+                ]]
+            },
+        })
+
+    return {"ok": True}
