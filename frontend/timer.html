@@ -478,13 +478,6 @@ function makeField(id,label,opts,val,onChange){
 function buildCreateFields(){
   var cf=$('create-fields');
   cf.innerHTML='';
-  createState={
-    rt: editing&&editing.roundTime?fmtMin(editing.roundTime):'',
-    rest: editing&&editing.rest?fmtMin(editing.rest):'',
-    rds: editing?(editing.rounds===Infinity?'∞':String(editing.rounds)):'',
-    exp: editing&&editing.explosive?(EXP_DATA.find(function(o){return o.v===editing.explosive.trigger;})||{l:'Без взрывов'}).l:'Без взрывов',
-    warn: editing&&editing.explosive&&editing.explosive.warnTime?editing.explosive.warnTime+' с':'10 с'
-  };
   cf.appendChild(makeField('rt','ВРЕМЯ РАУНДА',RT_LABELS,createState.rt,function(v){createState.rt=v;}));
   cf.appendChild(makeField('rest','ОТДЫХ',REST_LABELS,createState.rest,function(v){createState.rest=v;}));
   cf.appendChild(makeField('rds','РАУНДЫ',ROUNDS_LABELS,createState.rds,function(v){createState.rds=v;}));
@@ -531,6 +524,13 @@ function saveTimer(){
 function openCreate(tmr){
   editing=tmr||null;
   $('create-title').textContent=editing?'ИЗМЕНИТЬ ТАЙМЕР':'НОВЫЙ ТАЙМЕР';
+  createState={
+    rt: editing&&editing.roundTime?fmtMin(editing.roundTime):'',
+    rest: editing&&editing.rest?fmtMin(editing.rest):'',
+    rds: editing?(editing.rounds===Infinity?'∞':String(editing.rounds)):'',
+    exp: editing&&editing.explosive?(EXP_DATA.find(function(o){return o.v===editing.explosive.trigger;})||{l:'Без взрывов'}).l:'Без взрывов',
+    warn: editing&&editing.explosive&&editing.explosive.warnTime?editing.explosive.warnTime+' с':'10 с'
+  };
   buildCreateFields();
   $('home').classList.add('behind');
   $('create').classList.add('active');
